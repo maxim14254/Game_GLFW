@@ -6,8 +6,8 @@
 #include <map>
 
 
-#define mapW 10
-#define mapH 10
+#define mapW 3
+#define mapH 4
 
 class TCell
 {
@@ -22,6 +22,7 @@ public:
 	TCell* Up;
 	TCell* Down;
 	bool vizit = true;
+	float Colors[3];
 
 	TCell(int id) : Id(id)
 	{
@@ -60,12 +61,25 @@ struct Way
 	}
 };
 
+int start;
+int finish;
 int closeCell;
 int x;
 int y;
 bool lose;
 std::map <int, TCell*> map;
 std::map <int, Way*> map2;
+float color = rand() % 2;
+
+void CheсkColor(float(&colors)[3])
+{
+	if (colors[0] == 0 && colors[1] == 0 && colors[2] == 0)
+	{
+		colors[0] = 0.6f;
+		colors[1] = 0.6f;
+		colors[2] = 0.6f;
+	}
+}
 
 void Go(TCell* cell, TCell* cellGo, int way)
 {
@@ -73,6 +87,7 @@ void Go(TCell* cell, TCell* cellGo, int way)
 		return;
 
 	auto max = map2[cellGo->Id] == NULL ? map2[cellGo->Id] = new Way() : map2[cellGo->Id];
+	map2[cell->Id] == NULL ? map2[cell->Id] = new Way() : map2[cell->Id];
 	if (cellGo->vizit && way + map2[cell->Id]->SumWeigth < max->SumWeigth)
 	{
 		map2[cellGo->Id]->SumWeigth = way + map2[cell->Id]->SumWeigth;
@@ -82,6 +97,14 @@ void Go(TCell* cell, TCell* cellGo, int way)
 			map2[cellGo->Id]->Cells.insert(map2[cellGo->Id]->Cells.end(), map2[cell->Id]->Cells.begin(), map2[cell->Id]->Cells.end());
 		}
 		map2[cellGo->Id]->Cells.push_back(cellGo);
+
+		float color;
+		for (int i = 0; i < 3; ++i)
+		{
+			color = rand() % 2;
+			cellGo->Colors[i] = color;
+		}
+		CheсkColor(cellGo->Colors);
 	}
 }
 
@@ -108,7 +131,7 @@ void Game_New()
 
 	map[i] = cells;
 
-	while (i < pow(mapH, 2))
+	while (i < mapH * mapW)
 	{
 		++i;
 		if (j == mapH)
@@ -120,18 +143,19 @@ void Game_New()
 		else if (i <= mapH * j)
 		{
 			TCell* cellRight = map[i] == NULL ? new TCell(i) : map[i];
-			TCell* cellUp = map[i + mapH - 1] == NULL ? new TCell(i + mapH - 1) : map[i + mapH - 1];
+			TCell* cellUp = map[i + mapW - 1] == NULL ? new TCell(i + mapW - 1) : map[i + mapW - 1];
 
-			cells->Add(cellRight, cellUp, rand() % 10 + 1, rand() % 10 + 1);
+			i == mapW * j + 1 ? cells->Add(NULL, cellUp, rand() % 10 + 1, rand() % 10 + 1) : cells->Add(cellRight, cellUp, rand() % 10 + 1, rand() % 10 + 1);
 			cells = cellRight;
 
 			map[i] = cellRight;
-			map[i + mapH - 1] = cellUp;
+			map[i + mapW - 1] = cellUp;
+			i == mapW * j + 1 ? ++j : j;
 
 		}
 		else
 		{
-			TCell* cellUp = new TCell(i + mapH - 1);
+			TCell* cellUp = new TCell(i + mapW - 1);
 			cells->Add(NULL, cellUp, INT32_MAX, rand() % 10 + 1);
 			cells = firstCell->Up;
 			firstCell = firstCell->Up;
@@ -140,8 +164,9 @@ void Game_New()
 		}
 	}
 
-	int start = rand() % mapH + 1;
-
+	start = rand() % mapW + 1;
+	finish = rand() % (mapH - 1) + (mapH * mapW - mapH + 2);
+	//finish = 9;
 	TCell* cell = map[start];
 	cell->vizit = false;
 	map2[start] = new Way();
@@ -166,16 +191,29 @@ void Game_New()
 		Go(map[i], map[i]->Right, map[i]->WeigthRight);
 		Go(map[i], map[i]->Up, map[i]->WeigthUp);
 	}
+
+	map2[finish]->Cells.push_back(map[start]);
+	float red = rand() % 2;
+	float green = rand() % 2;
+	float blue = rand() % 2;
+
+	for (i = 0; i < map2[finish]->Cells.size(); ++i)
+	{
+		map2[finish]->Cells[i]->Colors[0] = red;
+		map2[finish]->Cells[i]->Colors[1] = green;
+		map2[finish]->Cells[i]->Colors[2] = blue;
+		CheсkColor(map2[finish]->Cells[i]->Colors);
+	}
 }
 
 
-void ShowField()
+void ShowField(float red, float green, float blue)
 {
 	glBegin(GL_TRIANGLE_STRIP);
 
-	glColor3f(0.8f, 0.8f, 0.8f); glVertex2f(0, 1);
-	glColor3f(0.7f, 0.7f, 0.7f); glVertex2f(1, 1); glVertex2f(0, 0);
-	glColor3f(0.6f, 0.6f, 0.6f); glVertex2f(1, 0);
+	glColor3f(red - 0.2f, green - 0.2f, blue - 0.2f); glVertex2f(0, 1);
+	glColor3f(red - 0.3f, green - 0.3f, blue - 0.3f); glVertex2f(1, 1); glVertex2f(0, 0);
+	glColor3f(red - 0.4f, green - 0.4f, blue - 0.4f); glVertex2f(1, 0);
 
 	glEnd();
 }
@@ -184,17 +222,20 @@ void ShowField()
 void Game_Show()
 {
 	glLoadIdentity();
-	glScalef(2.0 / mapW, 2.0 / mapH, 1);
-	glTranslated(-mapW * 0.5, -mapH * 0.5, 0);
+	glScalef(1.85 / mapW, 1.7 / mapH, 1);
+	glTranslated(-mapW * 0.5, -mapH * 0.45, 0);
 
-	for (int x = 0; x < mapW; ++x)
+
+	for (int y = 0; y < mapH; ++y)
 	{
-		for (int y = 0; y < mapH; ++y)
+		for (int x = 0; x < mapW; ++x)
 		{
 			glPushMatrix();
 			glTranslated(x, y, 0);
 
-			ShowField();
+			int index = y * mapW + x + 1;
+
+			ShowField(map[index]->Colors[0], map[index]->Colors[1], map[index]->Colors[2]);
 
 			glPopMatrix();
 		}
@@ -238,7 +279,7 @@ int main()
 	if (!glfwInit())
 		return -1;
 
-	window = glfwCreateWindow(640, 640, "Saper", NULL, NULL);
+	window = glfwCreateWindow(800, 800, "Saper", NULL, NULL);
 	glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
 
 	if (!window)
